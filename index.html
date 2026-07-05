@@ -324,6 +324,9 @@
     });
 
     // MOCK LOGIN LOGIC (For GitHub Pages Testing)
+   // --- REAL API LOGIN LOGIC ---
+    const API_URL = "YOUR_GOOGLE_SCRIPT_WEB_APP_URL_HERE"; // এখানে তোমার Web App URL বসাও
+
     document.getElementById("loginForm").addEventListener("submit", function(event){
       event.preventDefault(); 
 
@@ -335,41 +338,63 @@
       btn.innerHTML = '<span class="material-symbols-rounded animate-spin">autorenew</span> Authenticating...';
       btn.disabled = true;
 
-      // Simulate API Call delay (Since it's on GitHub Pages, we mock the backend)
-      setTimeout(() => {
+      // Google Apps Script API-তে রিকোয়েস্ট পাঠানো (CORS এড়াতে text/plain ব্যবহার করা হয়েছে)
+      fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8', 
+        },
+        body: JSON.stringify({
+          action: 'login',
+          username: user,
+          password: pass
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
         btn.innerHTML = originalHTML;
         btn.disabled = false;
 
-        // Dummy check (Accepts any non-empty input for demo purposes)
-        if(user.length > 2 && pass.length > 2) {
-          const userName = "Admin " + user;
-          localStorage.setItem("alordisha_user", JSON.stringify({ name: userName, role: "Admin" }));
+        if(data.success){
+          // লগইন সফল হলে ডেটা সেভ করা
+          localStorage.setItem("alordisha_user", JSON.stringify({ name: data.name, role: data.role }));
           
           Swal.fire({
             icon: 'success',
             title: 'Welcome Back!',
-            text: 'Successfully logged in as ' + userName,
+            text: 'Successfully logged in as ' + data.name,
             confirmButtonColor: '#4f46e5',
             customClass: { popup: 'rounded-3xl', confirmButton: 'rounded-xl px-6 py-2.5 font-bold' },
             timer: 1500,
             showConfirmButton: false
           }).then(() => {
-            document.getElementById("userNameDisplay").innerText = userName;
+            document.getElementById("userNameDisplay").innerText = data.name;
             switchView('dashboardPage');
           });
         } else {
+          // লগইন ফেইল হলে
           Swal.fire({
             icon: 'error',
             title: 'Access Denied',
-            text: 'Please enter valid credentials.',
+            text: data.message,
             confirmButtonColor: '#4f46e5',
             customClass: { popup: 'rounded-3xl', confirmButton: 'rounded-xl px-6 py-2.5 font-bold' }
           });
         }
-      }, 1500); // 1.5 second simulated delay
-    });
-
-    // LOGOUT LOGIC
+      })
+      .catch(error => {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+        Swal.fire({
+          icon: 'error',
+          title: 'Connection Error',
+          text: 'Please check your internet connection and try again.',
+          confirmButtonColor: '#4f46e5',
+          customClass: { popup: 'rounded-3xl', confirmButton: 'rounded-xl px-6 py-2.5 font-bold' }
+        });
+        console.error('Error:', error);
+      });
+    });    // LOGOUT LOGIC
     function handleLogout() {
       Swal.fire({
         title: 'Sign Out?',
